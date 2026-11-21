@@ -50,13 +50,19 @@ export const drawNeedle = (
   // needle doesn't jump to the end and back.
   const state = needleState(container);
   const keepsAnimation = resize && state && state.animating;
+  // A new value while the previous animation is still running (e.g. data
+  // polled every second with the default 3 s animation): start from where
+  // the needle is now, not from the previous target, so it doesn't jump
+  // back before moving on (#152)
+  const fromValue =
+    willAnimate && state && state.animating ? state.value : prevPercent;
   if (state && !keepsAnimation) {
     // A new value: stop any older animation from moving the needle
     state.token += 1;
     state.animating = false;
   }
   const startValue = willAnimate
-    ? prevPercent
+    ? fromValue
     : keepsAnimation
     ? state.value
     : percent;
@@ -92,7 +98,7 @@ export const drawNeedle = (
     const token = state ? state.token : 0;
     if (state) {
       state.animating = true;
-      state.value = prevPercent;
+      state.value = fromValue;
     }
     const done = () => {
       if (state && state.token === token) state.animating = false;
@@ -106,7 +112,7 @@ export const drawNeedle = (
       .on("interrupt", done)
       .tween("progress", function () {
         const currentPercent = interpolateNumber(
-          toNeedle(prevPercent),
+          toNeedle(fromValue),
           toNeedle(percent)
         );
         return function (percentOfPercent) {
